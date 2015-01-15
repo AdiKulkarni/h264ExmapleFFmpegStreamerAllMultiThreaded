@@ -10,7 +10,6 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
-
 import android.util.Log;
 
 import com.android.myffmpegx264lib.exampleEncoder;
@@ -37,7 +36,7 @@ public class X264Encoder {
 
 	// Encoder
 	private ArrayList<exampleEncoder> encoderInstances = new ArrayList<exampleEncoder>();
-	private int noOfEncoderInstances;
+	private int noOfEncoderInstances, noOfEncoderThreads, thread_type, noOfSlices;
 
 	// constructor
 	public X264Encoder() {
@@ -136,6 +135,9 @@ public class X264Encoder {
 			encoderInstances.get(i).setHeight(height);
 			encoderInstances.get(i).setWidth(width);
 			encoderInstances.get(i).setMaxBframes(maxBFrames);
+			encoderInstances.get(i).setNoOfThreads(getNoOfEncoderThreads());
+			encoderInstances.get(i).setParallelType(getThread_type());
+			encoderInstances.get(i).setSlices(getNoOfSlices());
 			encoderInstances.get(i).initialize();
 		}
 	}
@@ -174,6 +176,30 @@ public class X264Encoder {
 
 	public void setNoOfEncoderInstances(int noOfEncoderInstances) {
 		this.noOfEncoderInstances = noOfEncoderInstances;
+	}
+
+	public int getNoOfEncoderThreads() {
+		return noOfEncoderThreads;
+	}
+
+	public void setNoOfEncoderThreads(int noOfEncoderThreads) {
+		this.noOfEncoderThreads = noOfEncoderThreads;
+	}
+
+	public int getThread_type() {
+		return thread_type;
+	}
+
+	public void setThread_type(int thread_type) {
+		this.thread_type = thread_type;
+	}
+
+	public int getNoOfSlices() {
+		return noOfSlices;
+	}
+
+	public void setNoOfSlices(int noOfSlices) {
+		this.noOfSlices = noOfSlices;
 	}
 
 }

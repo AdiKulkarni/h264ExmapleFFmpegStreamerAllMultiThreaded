@@ -1,10 +1,8 @@
 package com.example.h264FFmpegStreamer;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
-
 import android.app.Activity;
 import android.graphics.ImageFormat;
 import android.graphics.PixelFormat;
@@ -29,14 +27,23 @@ public class MainStreamerActivity extends Activity implements
 	private SurfaceHolder surfaceHolder;
 	private static boolean previewing = false;
 
-	public static int frameRate = 60;
-	public static int width = 640;
-	public static int height = 480;
-	public static int bitrate = 1500000;
+	public static int frameRate = 30;
+	public static int width = 1280;
+	public static int height = 720;
+	public static int bitrate = 3000000;
 	public static int maxBFrames = 0;
 	public static int gopSize = 1;
 	private int mCount = 0;
-	private int noOfEncoderInstances = 5;
+
+	/*
+	 * if (thread_type == FF_THREAD_FRAME) = 1 ///< Decode more than one frame
+	 * at once if (thread_type == FF_THREAD_SLICE) = 2 ///< Decode more than one
+	 * part of a single frame at once
+	 */
+	private int thread_type = 2;
+	private int noOfSlices = 100;
+	private int noOfEncoderInstances = 1;
+	private int noOfEncoderThreads = 100;
 
 	private X264Encoder x264Encoder = new X264Encoder();
 
@@ -67,8 +74,16 @@ public class MainStreamerActivity extends Activity implements
 							if (camera != null) {
 
 								try {
+									final NV21Convertor converter = new NV21Convertor();
+									converter.setSize(width, height);
+									converter.setPlanar(true);
+
 									x264Encoder
 											.setNoOfEncoderInstances(noOfEncoderInstances);
+									x264Encoder
+											.setNoOfEncoderThreads(noOfEncoderThreads);
+									x264Encoder.setThread_type(thread_type);
+									x264Encoder.setNoOfSlices(noOfSlices);
 									x264Encoder
 											.createEncoderInstances(noOfEncoderInstances);
 									x264Encoder.initFFmpegEncoder(width,
@@ -77,14 +92,24 @@ public class MainStreamerActivity extends Activity implements
 
 									Parameters parameters = camera
 											.getParameters();
-
+									int[] fpsRange = getBestPreviewFpsRange(camera);
+									parameters.setPreviewFpsRange(fpsRange[0],
+											fpsRange[1]);
+									getBestPreviewSize(width, height,
+											parameters);
+									/*
+									 * parameters.setPreviewSize(
+									 * getBestPreviewSize(width, height,
+									 * parameters).width,
+									 * getBestPreviewSize(width, height,
+									 * parameters).height);
+									 */
 									parameters.setPreviewSize(width, height);
 									parameters
-											.setPreviewFormat(ImageFormat.YV12);
-									parameters.setPreviewFpsRange(4000,
-											frameRate * 1000);
-									parameters
 											.setFocusMode(Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
+									parameters
+											.setPreviewFormat(ImageFormat.NV21);
+									parameters.setRecordingHint(true);
 									camera.setParameters(parameters);
 									camera.setPreviewDisplay(surfaceHolder);
 									camera.setDisplayOrientation(90);
@@ -105,10 +130,10 @@ public class MainStreamerActivity extends Activity implements
 
 											try {
 												mCount++;
-												x264Encoder
-														.encodeFrame(
-																frameFromCamera,
-																mCount);
+												x264Encoder.encodeFrame(
+														converter
+																.convert(frameFromCamera),
+														mCount);
 												if ((now - oldnow) != 0) {
 													Log.d("Frames", "frame: "
 															+ mCount + " fps: "
@@ -179,5 +204,39 @@ public class MainStreamerActivity extends Activity implements
 
 	public static boolean getPreviewStatus() {
 		return previewing;
+	}
+
+	private Camera.Size getBestPreviewSize(int width, int height,
+			Camera.Parameters parameters) {
+		Camera.Size result = null;
+		for (Camera.Size size : parameters.getSupportedPreviewSizes()) {
+			Log.i(TAG, size.width + ":" + size.height);
+
+			if (size.width <= width && size.height <= height) {
+				if (result == null) {
+					result = size;
+				} else {
+					int resultArea = result.width * result.height;
+					int newArea = size.width * size.height;
+					if (newArea > resultArea) {
+						result = size;
+					}
+				}
+			}
+		}
+		return (result);
+	}
+
+	private int[] getBestPreviewFpsRange(Camera camera) {
+		int[] obj = null;
+		List<int[]> fpsBestRange = camera.getParameters()
+				.getSupportedPreviewFpsRange();
+		Iterator<int[]> it = fpsBestRange.iterator();
+		while (it.hasNext()) {
+			obj = it.next();
+			// Do something with obj
+			Log.i(TAG, obj[0] + ":" + obj[1] + "");
+		}
+		return obj;
 	}
 }
